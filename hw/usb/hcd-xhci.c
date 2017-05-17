@@ -434,11 +434,6 @@ static bool xhci_get_flag(XHCIState *xhci, enum xhci_flags bit)
     return xhci->flags & (1 << bit);
 }
 
-static void xhci_set_flag(XHCIState *xhci, enum xhci_flags bit)
-{
-    xhci->flags |= (1 << bit);
-}
-
 static uint64_t xhci_mfindex_get(XHCIState *xhci)
 {
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
