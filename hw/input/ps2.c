@@ -663,6 +663,8 @@ static int ps2_mouse_send_packet(PS2MouseState *s)
     /* extra byte for IMPS/2 or IMEX */
     switch(s->mouse_type) {
     default:
+        s->mouse_dz = 0;
+        dz1 = 0;
         break;
     case 3:
         if (dz1 > 127)
