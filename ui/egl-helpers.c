@@ -187,6 +187,14 @@ int egl_rendernode_init(const char *rendernode, DisplayGLMode mode)
         goto err;
     }
 
+    fprintf(stderr, "egl info:\n");
+    fprintf(stderr, "  mode     : %s\n",
+            qemu_egl_mode == DISPLAYGL_MODE_ES ? "gles" : "core");
+    fprintf(stderr, "  version  : %s\n", glGetString(GL_VERSION));
+    fprintf(stderr, "  vendor   : %s\n", glGetString(GL_VENDOR));
+    fprintf(stderr, "  renderer : %s\n", glGetString(GL_RENDERER));
+    fprintf(stderr, "  shader   : %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
+
     return 0;
 
 err:
