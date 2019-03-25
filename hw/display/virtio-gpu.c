@@ -214,6 +214,7 @@ virtio_gpu_generate_edid(VirtIOGPU *g, int scanout,
     qemu_edid_info info = {
         .prefx = b->req_state[scanout].width,
         .prefy = b->req_state[scanout].height,
+        .dpi   = b->req_state[scanout].dpi,
     };
 
     edid->size = cpu_to_le32(sizeof(edid->edid));

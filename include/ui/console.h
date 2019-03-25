@@ -138,6 +138,7 @@ typedef struct QemuUIInfo {
     int       yoff;
     uint32_t  width;
     uint32_t  height;
+    uint32_t  dpi;
 } QemuUIInfo;
 
 /* cursor data format is 32bit RGBA */

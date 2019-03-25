@@ -712,6 +712,26 @@ static gboolean gd_window_close(GtkWidget *widget, GdkEvent *event,
     return TRUE;
 }
 
+static int gd_get_dpi(GtkWidget *widget)
+{
+#if GTK_CHECK_VERSION(3, 22, 0)
+    GdkDisplay *dpy = gtk_widget_get_display(widget);
+    GdkWindow *win = gtk_widget_get_window(widget);
+    GdkMonitor *monitor = gdk_display_get_monitor_at_window(dpy, win);
+    GdkRectangle geometry;
+    int width_mm, dpi;
+
+    gdk_monitor_get_geometry(monitor, &geometry);
+    width_mm = gdk_monitor_get_width_mm(monitor);
+    dpi = (geometry.width * 254) / (width_mm * 10);
+    fprintf(stderr, "%s: pixels: %d, millimeters: %d -> %d dpi\n", __func__,
+            geometry.width, width_mm, dpi);
+    return dpi;
+#else
+    return 0;
+#endif
+}
+
 static void gd_set_ui_info(VirtualConsole *vc, gint width, gint height)
 {
     QemuUIInfo info;
@@ -719,6 +739,7 @@ static void gd_set_ui_info(VirtualConsole *vc, gint width, gint height)
     memset(&info, 0, sizeof(info));
     info.width = width;
     info.height = height;
+    info.dpi = gd_get_dpi(vc->gfx.drawing_area);
     dpy_set_ui_info(vc->gfx.dcl.con, &info);
 }
 
