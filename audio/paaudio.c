@@ -691,7 +691,8 @@ static void *qpa_conn_init(const char *server)
 
     pa_context_set_state_callback(c->context, context_state_cb, c);
 
-    if (pa_context_connect(c->context, server, 0, NULL) < 0) {
+    if (pa_context_connect(c->context, server,
+                           PA_CONTEXT_NOAUTOSPAWN, NULL) < 0) {
         qpa_logerr(pa_context_errno(c->context),
                    "pa_context_connect() failed\n");
         goto fail;
