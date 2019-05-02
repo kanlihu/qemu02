@@ -5,6 +5,7 @@
 #include "qemu-common.h"
 #include "audio.h"
 #include "qapi/opts-visitor.h"
+#include "qapi/error.h"
 
 #include <pulse/pulseaudio.h>
 
@@ -734,7 +735,7 @@ fail:
     return NULL;
 }
 
-static void *qpa_audio_init(Audiodev *dev)
+static void *qpa_audio_init(Audiodev *dev, Error **errp)
 {
     paaudio *g;
     AudiodevPaOptions *popts = &dev->u.pa;
@@ -750,18 +751,22 @@ static void *qpa_audio_init(Audiodev *dev)
 
         runtime = getenv("XDG_RUNTIME_DIR");
         if (!runtime) {
+            error_setg(errp, "paaudio: XDG_RUNTIME_DIR not set");
             return NULL;
         }
         snprintf(pidfile, sizeof(pidfile), "%s/pulse/pid", runtime);
         if (stat(pidfile, &st) != 0) {
+            error_setg(errp, "paaudio: daemon not running");
             return NULL;
         }
     }
 
     if (!qpa_validate_per_direction_opts(dev, popts->in)) {
+        error_setg(errp, "paaudio: input options not valid");
         return NULL;
     }
     if (!qpa_validate_per_direction_opts(dev, popts->out)) {
+        error_setg(errp, "paaudio: output options not valid");
         return NULL;
     }
 
@@ -783,6 +788,7 @@ static void *qpa_audio_init(Audiodev *dev)
     }
     if (!g->conn) {
         g_free(g);
+        error_setg(errp, "paaudio: connection init failed.");
         return NULL;
     }
 

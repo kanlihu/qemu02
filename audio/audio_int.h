@@ -137,7 +137,7 @@ typedef struct audio_driver audio_driver;
 struct audio_driver {
     const char *name;
     const char *descr;
-    void *(*init) (Audiodev *);
+    void *(*init) (Audiodev *, Error **errp);
     void (*fini) (void *);
     struct audio_pcm_ops *pcm_ops;
     int can_be_default;

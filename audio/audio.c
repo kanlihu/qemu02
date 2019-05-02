@@ -1489,32 +1489,27 @@ size_t audio_generic_read(HWVoiceIn *hw, void *buf, size_t size)
 }
 
 
-static int audio_driver_init(AudioState *s, struct audio_driver *drv,
-                             bool msg, Audiodev *dev)
+static void audio_driver_init(AudioState *s, struct audio_driver *drv,
+                              bool msg, Audiodev *dev, Error **errp)
 {
-    s->drv_opaque = drv->init(dev);
-
-    if (s->drv_opaque) {
-        if (!drv->pcm_ops->get_buffer_in) {
-            drv->pcm_ops->get_buffer_in = audio_generic_get_buffer_in;
-            drv->pcm_ops->put_buffer_in = audio_generic_put_buffer_in;
-        }
-        if (!drv->pcm_ops->get_buffer_out) {
-            drv->pcm_ops->get_buffer_out = audio_generic_get_buffer_out;
-            drv->pcm_ops->put_buffer_out = audio_generic_put_buffer_out;
-        }
-
-        audio_init_nb_voices_out(s, drv);
-        audio_init_nb_voices_in(s, drv);
-        s->drv = drv;
-        return 0;
+    s->drv_opaque = drv->init(dev, errp);
+    if (*errp) {
+        return;
     }
-    else {
-        if (msg) {
-            dolog("Could not init `%s' audio driver\n", drv->name);
-        }
-        return -1;
+
+    assert(s->drv_opaque);
+    if (!drv->pcm_ops->get_buffer_in) {
+        drv->pcm_ops->get_buffer_in = audio_generic_get_buffer_in;
+        drv->pcm_ops->put_buffer_in = audio_generic_put_buffer_in;
     }
+    if (!drv->pcm_ops->get_buffer_out) {
+        drv->pcm_ops->get_buffer_out = audio_generic_get_buffer_out;
+        drv->pcm_ops->put_buffer_out = audio_generic_put_buffer_out;
+    }
+
+    audio_init_nb_voices_out(s, drv);
+    audio_init_nb_voices_in(s, drv);
+    s->drv = drv;
 }
 
 static void audio_vm_change_state_handler (void *opaque, int running,
@@ -1647,6 +1642,7 @@ static AudioState *audio_init(Audiodev *dev, const char *name)
     struct audio_driver *driver;
     /* silence gcc warning about uninitialized variable */
     AudiodevListHead head = QSIMPLEQ_HEAD_INITIALIZER(head);
+    Error *err = NULL;
 
     if (dev) {
         /* -audiodev option */
@@ -1705,7 +1701,13 @@ static AudioState *audio_init(Audiodev *dev, const char *name)
     if (drvname) {
         driver = audio_driver_lookup(drvname);
         if (driver) {
-            done = !audio_driver_init(s, driver, true, dev);
+            audio_driver_init(s, driver, true, dev, &err);
+            if (err) {
+                warn_report_err(err);
+                err = NULL;
+            } else {
+                done = true;
+            }
         } else {
             dolog ("Unknown audio driver `%s'\n", drvname);
         }
@@ -1717,10 +1719,14 @@ static AudioState *audio_init(Audiodev *dev, const char *name)
             if (e && driver) {
                 s->dev = dev = e->dev;
                 audio_validate_opts(dev, &error_abort);
-                done = !audio_driver_init(s, driver, false, dev);
-                if (done) {
+                audio_driver_init(s, driver, false, dev, &err);
+                if (err) {
+                    /* don't bother the user with probe failures */
+                    error_free(err);
+                    err = NULL;
+                } else {
                     e->dev = NULL;
-                    break;
+                    done = true;
                 }
             }
         }
@@ -1729,8 +1735,8 @@ static AudioState *audio_init(Audiodev *dev, const char *name)
 
     if (!done) {
         driver = audio_driver_lookup("none");
-        done = !audio_driver_init(s, driver, false, dev);
-        assert(done);
+        audio_driver_init(s, driver, false, dev, &err);
+        assert(err == NULL);
         dolog("warning: Using timer based audio emulation\n");
     }
 

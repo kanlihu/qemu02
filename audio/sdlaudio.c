@@ -27,6 +27,7 @@
 #include <SDL_thread.h>
 #include "qemu/module.h"
 #include "audio.h"
+#include "qapi/error.h"
 
 #ifndef _WIN32
 #ifdef __sun__
@@ -290,16 +291,16 @@ static void sdl_enable_out(HWVoiceOut *hw, bool enable)
     SDL_PauseAudio(!enable);
 }
 
-static void *sdl_audio_init(Audiodev *dev)
+static void *sdl_audio_init(Audiodev *dev, Error **errp)
 {
     SDLAudioState *s = &glob_sdl;
     if (s->driver_created) {
-        sdl_logerr("Can't create multiple sdl backends\n");
+        error_setg(errp, "sdlaudio: can't create multiple backends");
         return NULL;
     }
 
     if (SDL_InitSubSystem (SDL_INIT_AUDIO)) {
-        sdl_logerr ("SDL failed to initialize audio subsystem\n");
+        error_setg(errp, "sdlaudio: SDL_InitSubSystem failed");
         return NULL;
     }
 

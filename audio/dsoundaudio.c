@@ -33,6 +33,7 @@
 #include "audio_int.h"
 #include "qemu/host-utils.h"
 #include "qemu/module.h"
+#include "qapi/error.h"
 
 #include <windows.h>
 #include <mmsystem.h>
@@ -340,7 +341,7 @@ static void dsound_clear_sample (HWVoiceOut *hw, LPDIRECTSOUNDBUFFER dsb,
     dsound_unlock_out (dsb, p1, p2, blen1, blen2);
 }
 
-static int dsound_open (dsound *s)
+static void dsound_open(dsound *s, Error **errp)
 {
     HRESULT hr;
     HWND hwnd;
@@ -353,12 +354,9 @@ static int dsound_open (dsound *s)
         );
 
     if (FAILED (hr)) {
-        dsound_logerr (hr, "Could not set cooperative level for window %p\n",
-                       hwnd);
-        return -1;
+        error_setg(errp, "Could not set cooperative level for window %p",
+                   hwnd);
     }
-
-    return 0;
 }
 
 static void dsound_enable_out(HWVoiceOut *hw, bool enable)
@@ -578,9 +576,8 @@ static void dsound_audio_fini (void *opaque)
     g_free(s);
 }
 
-static void *dsound_audio_init(Audiodev *dev)
+static void *dsound_audio_init(Audiodev *dev, Error **errp)
 {
-    int err;
     HRESULT hr;
     dsound *s = g_malloc0(sizeof(dsound));
     AudiodevDsoundOptions *dso;
@@ -596,7 +593,7 @@ static void *dsound_audio_init(Audiodev *dev)
 
     hr = CoInitialize (NULL);
     if (FAILED (hr)) {
-        dsound_logerr (hr, "Could not initialize COM\n");
+        error_setg(errp, "Could not initialize COM");
         g_free(s);
         return NULL;
     }
@@ -609,19 +606,16 @@ static void *dsound_audio_init(Audiodev *dev)
         (void **) &s->dsound
         );
     if (FAILED (hr)) {
-        dsound_logerr (hr, "Could not create DirectSound instance\n");
+        error_setg(errp, "Could not create DirectSound instance");
         g_free(s);
         return NULL;
     }
 
     hr = IDirectSound_Initialize (s->dsound, NULL);
     if (FAILED (hr)) {
-        dsound_logerr (hr, "Could not initialize DirectSound\n");
+        error_setg(errp, "Could not initialize DirectSound");
 
         hr = IDirectSound_Release (s->dsound);
-        if (FAILED (hr)) {
-            dsound_logerr (hr, "Could not release DirectSound\n");
-        }
         g_free(s);
         return NULL;
     }
@@ -640,17 +634,13 @@ static void *dsound_audio_init(Audiodev *dev)
         hr = IDirectSoundCapture_Initialize (s->dsound_capture, NULL);
         if (FAILED (hr)) {
             dsound_logerr (hr, "Could not initialize DirectSoundCapture\n");
-
             hr = IDirectSoundCapture_Release (s->dsound_capture);
-            if (FAILED (hr)) {
-                dsound_logerr (hr, "Could not release DirectSoundCapture\n");
-            }
             s->dsound_capture = NULL;
         }
     }
 
-    err = dsound_open (s);
-    if (err) {
+    dsound_open(s, errp);
+    if (errp) {
         dsound_audio_fini (s);
         return NULL;
     }
